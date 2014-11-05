@@ -28,6 +28,13 @@ pub struct Sensor {
     dev: Device,
 }
 
+impl Sensor {
+    pub fn new(port: InputPort) -> Sensor {
+        // stub.
+        Sensor { dev: Device {path:"".to_string(), device_index:-1} }
+    }
+}
+
 #[test]
 
 fn it_works() {
