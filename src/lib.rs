@@ -23,31 +23,49 @@ pub static OUTPUT_C: OutputPort = OutputPort("outC");
 pub static OUTPUT_D: OutputPort = OutputPort("outD");
 
 struct Device {
-    path: String,
+    path: Option<Path>,
     device_index: int,
 }
 
 impl Device {
     fn new() -> Device {
-        Device { path: String::new(), device_index: -1 }
+        Device { path: None, device_index: -1 }
     }
 
-    fn get_attr_string(&self, name: &str) -> String {
-        let mut f = File::open(&Path::new(self.path + name));
-        f.read_to_string().ok().expect("no device connected")
+    fn get_attr_string(&self, name: &str) -> Option<String> {
+        match self.path {
+            None => None,
+            Some(ref path) => File::open(&path.join(name)).and_then(
+                |mut f| { f.read_to_string().map(
+                    |mut text| { text.trim().to_string()}) }).ok(),
+        }
     }
 
-    fn connect(&mut self, dir: &str, pattern: &str,
+    fn connect(&mut self, dir: &Path, pattern: &str,
                match_spec: AttributeMatches) -> bool {
-        let mut paths = match fs::walk_dir(&Path::new(dir)) {
+        let mut paths = match fs::walk_dir(dir) {
             Err(_) => { return false; }
             Ok(paths) => paths,
         };
-        for path in paths.filter(|e| { true }) {
-            println!("{}", path.display());
+        let mut is_match = true;
+        for path in paths.filter(|e| {
+            e.dir_path() == *dir &&
+            e.filename_str().unwrap().starts_with(pattern)
+        }) {
+            self.path = Some(path.clone());
+            println!("trying path {}", path.display());
+            for (k, v) in match_spec.iter() {
+                let value = self.get_attr_string(k.as_slice()).unwrap();
+                println!("k,matches,value {},{},{}", k, v, value);
+                println!("contains? {}", v.contains(&value));
+                if !v.contains(&value) {
+                    is_match = false;
+                    self.path = None;
+                    break;
+                }
+            }
         }
-        // stub
-        false
+        is_match
     }
 }
 
@@ -83,6 +101,6 @@ mod test {
         matchy.insert("port_name".to_string(), matches);
         let data_dir = Path::new(file!()).dir_path().dir_path().join("data");
         let sensor_dir = data_dir.join_many(&["sys", "class", "msensor"]);
-        assert!(dut.connect(sensor_dir.as_str().expect(""), "sensor", matchy));
+        assert!(dut.connect(&sensor_dir, "sensor", matchy));
     }
 }
