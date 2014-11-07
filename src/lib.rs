@@ -41,6 +41,13 @@ impl Device {
         }
     }
 
+    fn get_attr_int(&self, name: &str) -> Option<int> {
+        match self.get_attr_string(name) {
+            None => None,
+            Some(text) => from_str(text.as_slice()),
+        }
+    }
+
     fn connect(&mut self, dir: &Path, pattern: &str,
                match_spec: AttributeMatches) -> bool {
         let mut paths = match fs::walk_dir(dir) {
