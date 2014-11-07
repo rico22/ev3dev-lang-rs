@@ -48,6 +48,15 @@ impl Device {
         }
     }
 
+    fn device_index(&self) -> Option<int> {
+        match self.path {
+            None => None,
+            Some(ref path) => from_str(path.filename_str().map(
+                |e| { e.trim_left_chars(
+                    |c: char| { !c.is_digit() }) }).unwrap()),
+        }
+    }
+
     fn connect(&mut self, dir: &Path, pattern: &str,
                match_spec: AttributeMatches) -> bool {
         let mut paths = match fs::walk_dir(dir) {
@@ -100,7 +109,7 @@ mod test {
     }
 
     #[test]
-    fn device_connect() {
+    fn device_basics() {
         let mut dut = Device::new();
         let mut matchy = HashMap::new();
         let mut matches = HashSet::new();
@@ -109,5 +118,7 @@ mod test {
         let data_dir = Path::new(file!()).dir_path().dir_path().join("data");
         let sensor_dir = data_dir.join_many(&["sys", "class", "msensor"]);
         assert!(dut.connect(&sensor_dir, "sensor", matchy));
+        assert!(dut.device_index() == Some(0));
+        assert!(dut.get_attr_int("value0") == Some(0));
     }
 }
