@@ -116,8 +116,12 @@ impl Device {
     }
 }
 
+pub trait SystemShim {
+    fn root_path(&self) -> Path { Path::new("/") }
+}
+
 #[allow(dead_code)]
-static SENSOR_CLASS_DIR: &'static str = "/sys/class/msensor";
+static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
 #[allow(dead_code)]
 static SENSOR_PATTERN: &'static str = "sensor";
 
@@ -143,8 +147,9 @@ impl Sensor {
         mode: None, nvalues: None, dp: None, dp_scale: 0f64}
     }
 
-    fn connect(&mut self, match_spec: AttributeMatches) -> Option<()> {
-        match self.dev.connect(&Path::new(SENSOR_CLASS_DIR),
+    fn connect<S: SystemShim>(&mut self, system: &S,
+               match_spec: AttributeMatches) -> Option<()> {
+        match self.dev.connect(&system.root_path().join(SENSOR_CLASS_DIR),
                                SENSOR_PATTERN, match_spec) {
             None => None,
             Some(_) => {
@@ -159,6 +164,7 @@ impl Sensor {
     fn init_binding(&mut self) {
         self.port_name = self.dev.get_attr_string("port_name");
         self.type_name = self.dev.get_attr_string("name");
+        println!("sensor init binding ok");
     }
 
     fn init_members(&mut self) {
@@ -167,10 +173,17 @@ impl Sensor {
         self.nvalues = self.dev.get_attr_int("num_values");
         self.dp = self.dev.get_attr_int("dp");
 
-        self.dp_scale = num::pow(1e-1f64, self.dp.unwrap().to_uint().unwrap());
+        let dpi = self.dp.unwrap();
+        println!("sensor dpi ok");
+        
+        let dpu = dpi.to_uint().unwrap();
+        println!("sensor dpu ok");
+        self.dp_scale = num::pow(1e-1f64, dpu);
+        println!("sensor init members ok");
     }
 
-    pub fn from_port(port: &InputPort) -> Option<Sensor> {
+    pub fn from_port<S: SystemShim>(
+        system: &S, port: &InputPort) -> Option<Sensor> {
         let mut sensor = Sensor::new();
 
         let mut match_spec = HashMap::new();
@@ -179,13 +192,13 @@ impl Sensor {
         matches.insert(port_string.to_string());
         match_spec.insert("port_name".to_string(), matches);
 
-        match sensor.connect(match_spec) {
+        match sensor.connect(system, match_spec) {
             None => None,
             Some(_) => Some(sensor),
         }
     }
 
-    pub fn from_port_and_type(
+    pub fn from_port_and_type<S: SystemShim>(system: &S,
         port: &InputPort, sensor_types: &HashSet<String>) -> Option<Sensor> {
         let mut sensor = Sensor::new();
 
@@ -196,7 +209,7 @@ impl Sensor {
         match_spec.insert("port_name".to_string(), ports);
         match_spec.insert("name".to_string(), sensor_types.clone());
 
-        match sensor.connect(match_spec) {
+        match sensor.connect(system, match_spec) {
             None => None,
             Some(_) => Some(sensor),
         }
@@ -207,7 +220,16 @@ impl Sensor {
 mod test {
     extern crate hamcrest;
     use super::Device;
+    use super::SystemShim;
     use std::collections::{HashSet, HashMap};
+
+    struct TestSystem;
+
+    impl SystemShim for TestSystem {
+        fn root_path(&self) -> Path {
+            return Path::new(file!()).dir_path().dir_path().join("data");
+        }
+    }
     
     #[test]
     fn try_types() {
@@ -217,13 +239,14 @@ mod test {
 
     #[test]
     fn device_basics() {
+        let system = TestSystem;
         let mut dut = Device::new();
         let mut matchy = HashMap::new();
         let mut matches = HashSet::new();
         matches.insert("in1".to_string());
         matchy.insert("port_name".to_string(), matches);
-        let data_dir = Path::new(file!()).dir_path().dir_path().join("data");
-        let sensor_dir = data_dir.join_many(&["sys", "class", "msensor"]);
+        let sensor_dir = system.root_path().join_many(
+            &["sys", "class", "msensor"]);
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
         assert!(dut.device_index() == Some(0));
         assert!(dut.get_attr_int("value0") == Some(0));
@@ -231,8 +254,7 @@ mod test {
 
     #[test]
     fn sensor_basics() {
-        // fails because device at exact path does not exist.
-        // TODO: figure out a testing strategy.
-        assert!(super::Sensor::from_port(&super::INPUT_1).is_none());
+        let system = TestSystem;
+        assert!(super::Sensor::from_port(&system, &super::INPUT_1).is_some());
     }
 }
