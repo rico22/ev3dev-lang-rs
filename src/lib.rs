@@ -121,6 +121,16 @@ pub trait SystemShim {
 }
 
 #[allow(dead_code)]
+struct Ev3DevSystem;
+
+#[allow(dead_code)]
+impl SystemShim for Ev3DevSystem {
+    fn root_path(&self) -> Path {
+        return Path::new("/");
+    }
+}
+    
+#[allow(dead_code)]
 static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
 #[allow(dead_code)]
 static SENSOR_PATTERN: &'static str = "sensor";
