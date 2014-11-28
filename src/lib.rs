@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::io::fs;
-use std::io::{File, Append, Write};
-use std::num;
+use std::io::fs::PathExtensions;
+use std::io::{File, Append, Write, IoResult};
 
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
@@ -24,52 +24,45 @@ pub static OUTPUT_D: OutputPort = OutputPort("outD");
 
 #[allow(dead_code)]
 struct Device {
-    path: Option<Path>,
+    path: Path,
     device_index: int,
 }
 
 #[allow(dead_code)]
 impl Device {
     fn new() -> Device {
-        Device { path: None, device_index: -1 }
+        Device { path: Path::new(""), device_index: -1 }
     }
 
-    fn get_attr_string(&self, name: &str) -> Option<String> {
-        match self.path {
-            None => None,
-            Some(ref path) => File::open(&path.join(name)).and_then(
-                |mut f| { f.read_to_string().map(
-                    |text| { text.trim().to_string()}) }).ok(),
-        }
+    fn get_attr_string(&self, name: &str) -> IoResult<String> {
+        assert!(self.path.is_dir());
+        File::open(&self.path.join(name)).and_then(
+            |mut f| { f.read_to_string().map(
+                |text| { text.trim().to_string()}) })
+        
     }
 
-    fn set_attr_string(&self, name: &str, value: &str) -> Option<()> {
-        match self.path {
-            None => None,
-            Some(ref path) => File::open_mode(
-                &path.join(name), Append, Write).and_then(
-                |mut f| { f.write_str(value)}).ok(),
-        }
+    fn set_attr_string(&self, name: &str, value: &str) -> IoResult<()> {
+        assert!(self.path.is_dir());
+        File::open_mode(&self.path.join(name), Append, Write).and_then(
+            |mut f| { f.write_str(value)})
     }
 
-    fn get_attr_int(&self, name: &str) -> Option<int> {
+    fn get_attr_int(&self, name: &str) -> IoResult<int> {
         match self.get_attr_string(name) {
-            None => None,
-            Some(text) => from_str(text.as_slice()),
+            Err(err) => Err(err),
+            Ok(text) => Ok(from_str(text.as_slice()).unwrap()),
         }
     }
 
-    fn set_attr_int(&self, name: &str, value: int) -> Option<()> {
+    fn set_attr_int(&self, name: &str, value: int) -> IoResult<()> {
         self.set_attr_string(name, format!("{}", value).as_slice())
     }
 
     fn _parse_device_index(&self) -> Option<int> {
-        match self.path {
-            None => None,
-            Some(ref path) => from_str(path.filename_str().map(
-                |e| { e.trim_left_chars(
-                    |c: char| { !c.is_digit() }) }).unwrap()),
-        }
+        from_str(self.path.filename_str().map(
+            |e| { e.trim_left_chars(
+                |c: char| { !c.is_digit(10u) }) }).unwrap())
     }
 
     fn device_index(&mut self) -> Option<int> {
@@ -99,7 +92,7 @@ impl Device {
             e.dir_path() == *dir &&
             e.filename_str().unwrap().starts_with(pattern)
         }) {
-            self.path = Some(path.clone());
+            self.path = path.clone();
             println!("trying path {}", path.display());
             for (k, v) in match_spec.iter() {
                 let value = self.get_attr_string(k.as_slice()).unwrap();
@@ -107,7 +100,7 @@ impl Device {
                 println!("contains? {}", v.contains(&value));
                 if !v.contains(&value) {
                     is_match = None;
-                    self.path = None;
+                    self.path = Path::new("");
                     break;
                 }
             }
@@ -138,12 +131,12 @@ static SENSOR_PATTERN: &'static str = "sensor";
 #[allow(dead_code)]
 pub struct Sensor {
     dev: Device,
-    port_name: Option<String>,
-    type_name: Option<String>,
-    mode: Option<String>,
+    port_name: String,
+    type_name: String,
+    mode: String,
     //modes: Option<HashSet>,
-    nvalues: Option<int>,
-    dp: Option<int>,
+    nvalues: int,
+    dp: int,
     dp_scale: f64,
 }
 
@@ -153,8 +146,9 @@ impl Sensor {
 
     fn new() -> Sensor {
         // stub.
-        Sensor { dev: Device::new(), port_name: None, type_name: None,
-        mode: None, nvalues: None, dp: None, dp_scale: 0f64}
+        Sensor { dev: Device::new(), port_name: String::new(),
+                 type_name: String::new(), mode: String::new(),
+                 nvalues: 0, dp: -1, dp_scale: 0f64}
     }
 
     fn connect<S: SystemShim>(&mut self, system: &S,
@@ -172,23 +166,23 @@ impl Sensor {
     }
 
     fn init_binding(&mut self) {
-        self.port_name = self.dev.get_attr_string("port_name");
-        self.type_name = self.dev.get_attr_string("name");
+        self.port_name = self.dev.get_attr_string("port_name").unwrap();
+        self.type_name = self.dev.get_attr_string("name").unwrap();
         println!("sensor init binding ok");
     }
 
     fn init_members(&mut self) {
-        self.mode = self.dev.get_attr_string("mode");
+        self.mode = self.dev.get_attr_string("mode").unwrap();
         //self.modes = self.dev.get_attr_set("modes");
-        self.nvalues = self.dev.get_attr_int("num_values");
-        self.dp = self.dev.get_attr_int("dp");
+        self.nvalues = self.dev.get_attr_int("num_values").unwrap();
+        self.dp = self.dev.get_attr_int("dp").unwrap();
 
-        let dpi = self.dp.unwrap();
+        let dpi = self.dp;
         println!("sensor dpi ok");
         
-        let dpu = dpi.to_uint().unwrap();
+        let dpu = dpi.to_i32().unwrap();
         println!("sensor dpu ok");
-        self.dp_scale = num::pow(1e-1f64, dpu);
+        self.dp_scale = std::num::Float::powi(1e-1f64, dpu);
         println!("sensor init members ok");
     }
 
@@ -259,7 +253,7 @@ mod test {
             &["sys", "class", "msensor"]);
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
         assert!(dut.device_index() == Some(0));
-        assert!(dut.get_attr_int("value0") == Some(0));
+        assert!(dut.get_attr_int("value0").unwrap() == 0);
     }
 
     #[test]
