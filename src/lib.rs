@@ -59,6 +59,19 @@ impl Device {
         self.set_attr_string(name, format!("{}", value).as_slice())
     }
 
+    fn get_attr_set(&self, name: &str) -> IoResult<HashSet<String>> {
+        match self.get_attr_string(name) {
+            Err(err) => Err(err),
+            Ok(text) => {
+                let mut set = HashSet::<String>::new();
+                for x in text.trim().split(' ') {
+                    set.insert(x.to_string());
+                }
+                Ok(set)
+            }
+        }
+    }
+
     fn _parse_device_index(&self) -> Option<int> {
         from_str(self.path.filename_str().map(
             |e| { e.trim_left_chars(
@@ -134,7 +147,7 @@ pub struct Sensor {
     port_name: String,
     type_name: String,
     mode: String,
-    //modes: Option<HashSet>,
+    modes: HashSet<String>,
     nvalues: int,
     dp: int,
     dp_scale: f64,
@@ -148,6 +161,7 @@ impl Sensor {
         // stub.
         Sensor { dev: Device::new(), port_name: String::new(),
                  type_name: String::new(), mode: String::new(),
+                 modes: HashSet::new(),
                  nvalues: 0, dp: -1, dp_scale: 0f64}
     }
 
@@ -173,7 +187,7 @@ impl Sensor {
 
     fn init_members(&mut self) {
         self.mode = self.dev.get_attr_string("mode").unwrap();
-        //self.modes = self.dev.get_attr_set("modes");
+        self.modes = self.dev.get_attr_set("modes").unwrap();
         self.nvalues = self.dev.get_attr_int("num_values").unwrap();
         self.dp = self.dev.get_attr_int("dp").unwrap();
 
