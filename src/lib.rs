@@ -232,6 +232,26 @@ impl Sensor {
             Some(_) => Some(sensor),
         }
     }
+
+    pub fn units(&self) -> String {
+        self.dev.get_attr_string("units").unwrap()
+    }
+
+    pub fn set_mode(&mut self, mode: &str) {
+        if self.mode.as_slice() != mode {
+            self.dev.set_attr_string("mode", mode).unwrap();
+            self.init_members();
+        }
+    }
+
+    pub fn value(&self, index: int) -> int {
+        assert!(index < self.nvalues && index >= 0);
+        self.dev.get_attr_int(format!("value{}", index).as_slice()).unwrap()
+    }
+
+    pub fn float_value(&self, index: int) -> f64 {
+        self.value(index) as f64 * self.dp_scale
+    }
 }
 
 #[cfg(test)]
@@ -273,6 +293,9 @@ mod test {
     #[test]
     fn sensor_basics() {
         let system = TestSystem;
-        assert!(super::Sensor::from_port(&system, &super::INPUT_1).is_some());
+        let sens1 = super::Sensor::from_port(&system, &super::INPUT_1);
+        assert!(sens1.is_some());
+        let super::InputPort(port1) = super::INPUT_1;
+        assert!(sens1.unwrap().port_name.as_slice() == port1);
     }
 }
