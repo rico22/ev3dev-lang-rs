@@ -1,8 +1,11 @@
+#![feature(io,path,core,unicode)] // TODO: undo these?
+
 use std::collections::HashSet;
 use std::collections::HashMap;
-use std::io::fs;
-use std::io::fs::PathExtensions;
-use std::io::{File, Append, Write, IoResult};
+use std::old_io::fs;
+use std::old_io::fs::PathExtensions;
+use std::old_io::{File, Append, Write, IoResult};
+use std::num::ToPrimitive;
 
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
@@ -25,7 +28,7 @@ pub static OUTPUT_D: OutputPort = OutputPort("outD");
 #[allow(dead_code)]
 struct Device {
     path: Path,
-    device_index: int,
+    device_index: isize,
 }
 
 #[allow(dead_code)]
@@ -48,14 +51,14 @@ impl Device {
             |mut f| { f.write_str(value)})
     }
 
-    fn get_attr_int(&self, name: &str) -> IoResult<int> {
+    fn get_attr_int(&self, name: &str) -> IoResult<isize> {
         match self.get_attr_string(name) {
             Err(err) => Err(err),
-            Ok(text) => Ok(from_str(text.as_slice()).unwrap()),
+            Ok(text) => Ok(text.as_slice().parse::<isize>().unwrap()),
         }
     }
 
-    fn set_attr_int(&self, name: &str, value: int) -> IoResult<()> {
+    fn set_attr_int(&self, name: &str, value: isize) -> IoResult<()> {
         self.set_attr_string(name, format!("{}", value).as_slice())
     }
 
@@ -72,23 +75,18 @@ impl Device {
         }
     }
 
-    fn _parse_device_index(&self) -> Option<int> {
-        from_str(self.path.filename_str().map(
-            |e| { e.trim_left_chars(
-                |c: char| { !c.is_digit(10u) }) }).unwrap())
+    fn _parse_device_index(&self) -> isize {
+        self.path.filename_str().map(
+            |e| { e.trim_left_matches(
+                |c: char| { !c.is_digit(10us) }) }).unwrap()
+            .parse::<isize>().unwrap()
     }
 
-    fn device_index(&mut self) -> Option<int> {
+    fn device_index(&mut self) -> isize {
         if self.device_index < 0 {
-            return match self._parse_device_index() {
-                None => None,
-                Some(index) => {
-                    self.device_index = index;
-                    return Some(index);
-                }
-            }
+            self.device_index = self._parse_device_index();
         }
-        Some(self.device_index)
+        self.device_index
     }
 
     fn connect(&mut self, dir: &Path, pattern: &str,
@@ -109,7 +107,7 @@ impl Device {
             println!("trying path {}", path.display());
             for (k, v) in match_spec.iter() {
                 let value = self.get_attr_string(k.as_slice()).unwrap();
-                println!("k,matches,value {},{},{}", k, v, value);
+                println!("k,matches,value {},{}", k, value);
                 println!("contains? {}", v.contains(&value));
                 if !v.contains(&value) {
                     is_match = None;
@@ -148,8 +146,8 @@ pub struct Sensor {
     type_name: String,
     mode: String,
     modes: HashSet<String>,
-    nvalues: int,
-    dp: int,
+    nvalues: isize,
+    dp: isize,
     dp_scale: f64,
 }
 
@@ -244,19 +242,18 @@ impl Sensor {
         }
     }
 
-    pub fn value(&self, index: int) -> int {
+    pub fn value(&self, index: isize) -> isize {
         assert!(index < self.nvalues && index >= 0);
         self.dev.get_attr_int(format!("value{}", index).as_slice()).unwrap()
     }
 
-    pub fn float_value(&self, index: int) -> f64 {
+    pub fn float_value(&self, index: isize) -> f64 {
         self.value(index) as f64 * self.dp_scale
     }
 }
 
 #[cfg(test)]
 mod test {
-    extern crate hamcrest;
     use super::Device;
     use super::SystemShim;
     use std::collections::{HashSet, HashMap};
@@ -286,7 +283,7 @@ mod test {
         let sensor_dir = system.root_path().join_many(
             &["sys", "class", "msensor"]);
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
-        assert!(dut.device_index() == Some(0));
+        assert!(dut.device_index() == 0);
         assert!(dut.get_attr_int("value0").unwrap() == 0);
     }
 
