@@ -1,11 +1,14 @@
-#![feature(io,path,core,unicode)] // TODO: undo these?
-
 use std::collections::HashSet;
 use std::collections::HashMap;
-use std::old_io::fs;
-use std::old_io::fs::PathExtensions;
-use std::old_io::{File, Append, Write, IoResult};
-use std::num::ToPrimitive;
+use std::fs;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::ops::Deref;
+use std::io::Result;
 
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
@@ -27,42 +30,45 @@ pub static OUTPUT_D: OutputPort = OutputPort("outD");
 
 #[allow(dead_code)]
 struct Device {
-    path: Path,
+    path: PathBuf,
     device_index: isize,
 }
 
 #[allow(dead_code)]
 impl Device {
     fn new() -> Device {
-        Device { path: Path::new(""), device_index: -1 }
+        Device { path: PathBuf::new(), device_index: -1 }
     }
 
-    fn get_attr_string(&self, name: &str) -> IoResult<String> {
-        assert!(self.path.is_dir());
-        File::open(&self.path.join(name)).and_then(
-            |mut f| { f.read_to_string().map(
-                |text| { text.trim().to_string()}) })
-        
-    }
-
-    fn set_attr_string(&self, name: &str, value: &str) -> IoResult<()> {
-        assert!(self.path.is_dir());
-        File::open_mode(&self.path.join(name), Append, Write).and_then(
-            |mut f| { f.write_str(value)})
-    }
-
-    fn get_attr_int(&self, name: &str) -> IoResult<isize> {
-        match self.get_attr_string(name) {
+    fn get_attr_string(&self, name: &str) -> Result<String> {
+        //assert!(self.path.deref().is_dir());
+        let mut s = String::new();
+        let e = File::open(&self.path.join(name)).and_then(
+            |mut f| { f.read_to_string(&mut s) });
+        match e {
             Err(err) => Err(err),
-            Ok(text) => Ok(text.as_slice().parse::<isize>().unwrap()),
+            Ok(_) => Ok(s.trim().to_string()),
         }
     }
 
-    fn set_attr_int(&self, name: &str, value: isize) -> IoResult<()> {
-        self.set_attr_string(name, format!("{}", value).as_slice())
+    fn set_attr_string(&self, name: &str, value: &str) -> Result<()> {
+        //assert!(self.path.is_dir());
+        OpenOptions::new().append(true).write(true).open(&self.path.join(name)).and_then(
+            |mut f| { write!(&mut f, "{}", value)})
     }
 
-    fn get_attr_set(&self, name: &str) -> IoResult<HashSet<String>> {
+    fn get_attr_int(&self, name: &str) -> Result<isize> {
+        match self.get_attr_string(name) {
+            Err(err) => Err(err),
+            Ok(text) => Ok(text.parse::<isize>().unwrap()),
+        }
+    }
+
+    fn set_attr_int(&self, name: &str, value: isize) -> Result<()> {
+        self.set_attr_string(name, &format!("{}", value))
+    }
+
+    fn get_attr_set(&self, name: &str) -> Result<HashSet<String>> {
         match self.get_attr_string(name) {
             Err(err) => Err(err),
             Ok(text) => {
@@ -76,9 +82,9 @@ impl Device {
     }
 
     fn _parse_device_index(&self) -> isize {
-        self.path.filename_str().map(
-            |e| { e.trim_left_matches(
-                |c: char| { !c.is_digit(10us) }) }).unwrap()
+        self.path.deref().file_name().map(
+            |e| { e.to_str().expect("ZOMG!").trim_left_matches(
+                |c: char| { !c.is_digit(10u32) }) }).unwrap()
             .parse::<isize>().unwrap()
     }
 
@@ -91,7 +97,7 @@ impl Device {
 
     fn connect(&mut self, dir: &Path, pattern: &str,
                match_spec: AttributeMatches) -> Option<()> {
-        let paths = match fs::walk_dir(dir) {
+        let paths = match fs::read_dir(dir) {
             Err(_) => {
                 println!("dir walk error");
                 return None;
@@ -100,18 +106,18 @@ impl Device {
         };
         let mut is_match = Some(());
         for path in paths.filter(|e| {
-            e.dir_path() == *dir &&
-            e.filename_str().unwrap().starts_with(pattern)
+            e.is_ok()
         }) {
-            self.path = path.clone();
-            println!("trying path {}", path.display());
+            self.path = path.unwrap().path().clone();
+            if !self.path.to_str().expect("ZOUNDS!").starts_with(pattern) { continue; }
+            println!("trying path {}", self.path.display());
             for (k, v) in match_spec.iter() {
-                let value = self.get_attr_string(k.as_slice()).unwrap();
+                let value = self.get_attr_string(k).unwrap();
                 println!("k,matches,value {},{}", k, value);
                 println!("contains? {}", v.contains(&value));
                 if !v.contains(&value) {
                     is_match = None;
-                    self.path = Path::new("");
+                    self.path = PathBuf::new();
                     break;
                 }
             }
@@ -121,7 +127,7 @@ impl Device {
 }
 
 pub trait SystemShim {
-    fn root_path(&self) -> Path { Path::new("/") }
+    fn root_path(&self) -> PathBuf { PathBuf::from("/") }
 }
 
 #[allow(dead_code)]
@@ -129,8 +135,8 @@ struct Ev3DevSystem;
 
 #[allow(dead_code)]
 impl SystemShim for Ev3DevSystem {
-    fn root_path(&self) -> Path {
-        return Path::new("/");
+    fn root_path(&self) -> PathBuf {
+        return PathBuf::from("/");
     }
 }
     
@@ -192,9 +198,9 @@ impl Sensor {
         let dpi = self.dp;
         println!("sensor dpi ok");
         
-        let dpu = dpi.to_i32().unwrap();
+        let dpu = dpi as i32;
         println!("sensor dpu ok");
-        self.dp_scale = std::num::Float::powi(1e-1f64, dpu);
+        self.dp_scale = (1e-1f64).powi(dpu);
         println!("sensor init members ok");
     }
 
@@ -236,7 +242,7 @@ impl Sensor {
     }
 
     pub fn set_mode(&mut self, mode: &str) {
-        if self.mode.as_slice() != mode {
+        if self.mode != mode {
             self.dev.set_attr_string("mode", mode).unwrap();
             self.init_members();
         }
@@ -244,7 +250,7 @@ impl Sensor {
 
     pub fn value(&self, index: isize) -> isize {
         assert!(index < self.nvalues && index >= 0);
-        self.dev.get_attr_int(format!("value{}", index).as_slice()).unwrap()
+        self.dev.get_attr_int(&format!("value{}", index)).unwrap()
     }
 
     pub fn float_value(&self, index: isize) -> f64 {
@@ -257,12 +263,13 @@ mod test {
     use super::Device;
     use super::SystemShim;
     use std::collections::{HashSet, HashMap};
+    use std::path::PathBuf;
 
     struct TestSystem;
 
     impl SystemShim for TestSystem {
-        fn root_path(&self) -> Path {
-            return Path::new(file!()).dir_path().dir_path().join("data");
+        fn root_path(&self) -> PathBuf {
+            return PathBuf::from(file!()).parent().expect("ROOT?!?").parent().expect("ROOTROOT?!?").join("data");
         }
     }
     
@@ -280,8 +287,7 @@ mod test {
         let mut matches = HashSet::new();
         matches.insert("in1".to_string());
         matchy.insert("port_name".to_string(), matches);
-        let sensor_dir = system.root_path().join_many(
-            &["sys", "class", "msensor"]);
+        let sensor_dir = system.root_path().join("sys").join("class").join("msensor");
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
         assert!(dut.device_index() == 0);
         assert!(dut.get_attr_int("value0").unwrap() == 0);
@@ -293,6 +299,6 @@ mod test {
         let sens1 = super::Sensor::from_port(&system, &super::INPUT_1);
         assert!(sens1.is_some());
         let super::InputPort(port1) = super::INPUT_1;
-        assert!(sens1.unwrap().port_name.as_slice() == port1);
+        assert!(sens1.unwrap().port_name == port1);
     }
 }
