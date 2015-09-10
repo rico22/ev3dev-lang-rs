@@ -1,3 +1,8 @@
+#![feature(plugin)]
+
+#![plugin(clippy)]
+
+
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::fs;
@@ -47,7 +52,7 @@ impl Device {
             |mut f| { f.read_to_string(&mut s) });
         match e {
             Err(err) => Err(err),
-            Ok(_) => Ok(s.trim().to_string()),
+            Ok(_) => Ok(s.trim().to_owned()),
         }
     }
 
@@ -75,7 +80,7 @@ impl Device {
             Ok(text) => {
                 let mut set = HashSet::<String>::new();
                 for x in text.trim().split(' ') {
-                    set.insert(x.to_string());
+                    set.insert(x.to_owned());
                 }
                 Ok(set)
             }
@@ -113,7 +118,7 @@ impl Device {
             if !self.path.to_str().expect("ZOUNDS!")
                 .starts_with(pattern) { continue; }
             println!("trying path {}", self.path.display());
-            for (k, v) in match_spec.iter() {
+            for (k, v) in &match_spec {
                 let value = self.get_attr_string(k).unwrap();
                 println!("k,matches,value {},{}", k, value);
                 println!("contains? {}", v.contains(&value));
@@ -138,7 +143,7 @@ struct Ev3DevSystem;
 #[allow(dead_code)]
 impl SystemShim for Ev3DevSystem {
     fn root_path(&self) -> PathBuf {
-        return PathBuf::from("/");
+        PathBuf::from("/")
     }
 }
     
@@ -180,7 +185,7 @@ impl Sensor {
                 println!("sensor connect ok");
                 self.init_binding();
                 self.init_members();
-                return Some(());
+                Some(())
             }
         }
     }
@@ -213,8 +218,8 @@ impl Sensor {
         let mut match_spec = HashMap::new();
         let mut matches = HashSet::new();
         let &InputPort(port_string) = port;
-        matches.insert(port_string.to_string());
-        match_spec.insert("port_name".to_string(), matches);
+        matches.insert(port_string.to_owned());
+        match_spec.insert("port_name".to_owned(), matches);
 
         match sensor.connect(system, match_spec) {
             None => None,
@@ -229,9 +234,9 @@ impl Sensor {
         let mut match_spec = HashMap::new();
         let mut ports = HashSet::new();
         let &InputPort(port_string) = port;
-        ports.insert(port_string.to_string());
-        match_spec.insert("port_name".to_string(), ports);
-        match_spec.insert("name".to_string(), sensor_types.clone());
+        ports.insert(port_string.to_owned());
+        match_spec.insert("port_name".to_owned(), ports);
+        match_spec.insert("name".to_owned(), sensor_types.clone());
 
         match sensor.connect(system, match_spec) {
             None => None,
@@ -271,8 +276,8 @@ mod test {
 
     impl SystemShim for TestSystem {
         fn root_path(&self) -> PathBuf {
-            return PathBuf::from(file!()).parent().expect("ROOT?!?")
-                .parent().expect("ROOTROOT?!?").join("data");
+            PathBuf::from(file!()).parent().expect("ROOT?!?")
+                .parent().expect("ROOTROOT?!?").join("data")
         }
     }
     
@@ -288,8 +293,8 @@ mod test {
         let mut dut = Device::new();
         let mut matchy = HashMap::new();
         let mut matches = HashSet::new();
-        matches.insert("in1".to_string());
-        matchy.insert("port_name".to_string(), matches);
+        matches.insert("in1".to_owned());
+        matchy.insert("port_name".to_owned(), matches);
         let sensor_dir = system.root_path()
             .join("sys").join("class").join("msensor");
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));

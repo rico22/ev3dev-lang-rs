@@ -7,3 +7,6 @@ authors = ["Rick Poyner <rico@alum.mit.edu>"]
 [dependencies.hamcrest]
 
 git = "https://github.com/carllerche/hamcrest-rust.git"
+
+[dependencies]
+clippy = "*"
