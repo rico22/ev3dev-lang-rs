@@ -53,8 +53,9 @@ impl Device {
 
     fn set_attr_string(&self, name: &str, value: &str) -> Result<()> {
         //assert!(self.path.is_dir());
-        OpenOptions::new().append(true).write(true).open(&self.path.join(name)).and_then(
-            |mut f| { write!(&mut f, "{}", value)})
+        OpenOptions::new().append(true).write(true)
+            .open(&self.path.join(name)).and_then(
+                |mut f| { write!(&mut f, "{}", value)})
     }
 
     fn get_attr_int(&self, name: &str) -> Result<isize> {
@@ -109,7 +110,8 @@ impl Device {
             e.is_ok()
         }) {
             self.path = path.unwrap().path().clone();
-            if !self.path.to_str().expect("ZOUNDS!").starts_with(pattern) { continue; }
+            if !self.path.to_str().expect("ZOUNDS!")
+                .starts_with(pattern) { continue; }
             println!("trying path {}", self.path.display());
             for (k, v) in match_spec.iter() {
                 let value = self.get_attr_string(k).unwrap();
@@ -269,7 +271,8 @@ mod test {
 
     impl SystemShim for TestSystem {
         fn root_path(&self) -> PathBuf {
-            return PathBuf::from(file!()).parent().expect("ROOT?!?").parent().expect("ROOTROOT?!?").join("data");
+            return PathBuf::from(file!()).parent().expect("ROOT?!?")
+                .parent().expect("ROOTROOT?!?").join("data");
         }
     }
     
@@ -287,7 +290,8 @@ mod test {
         let mut matches = HashSet::new();
         matches.insert("in1".to_string());
         matchy.insert("port_name".to_string(), matches);
-        let sensor_dir = system.root_path().join("sys").join("class").join("msensor");
+        let sensor_dir = system.root_path()
+            .join("sys").join("class").join("msensor");
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
         assert!(dut.device_index() == 0);
         assert!(dut.get_attr_int("value0").unwrap() == 0);
