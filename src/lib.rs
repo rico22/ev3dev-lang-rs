@@ -48,12 +48,9 @@ impl Device {
     fn get_attr_string(&self, name: &str) -> Result<String> {
         //assert!(self.path.deref().is_dir());
         let mut s = String::new();
-        let e = File::open(&self.path.join(name)).and_then(
-            |mut f| { f.read_to_string(&mut s) });
-        match e {
-            Err(err) => Err(err),
-            Ok(_) => Ok(s.trim().to_owned()),
-        }
+        try!(File::open(&self.path.join(name)).and_then(
+            |mut f| { f.read_to_string(&mut s) }));
+        Ok(s.trim().to_owned())
     }
 
     fn set_attr_string(&self, name: &str, value: &str) -> Result<()> {
@@ -64,10 +61,8 @@ impl Device {
     }
 
     fn get_attr_int(&self, name: &str) -> Result<isize> {
-        match self.get_attr_string(name) {
-            Err(err) => Err(err),
-            Ok(text) => Ok(text.parse::<isize>().unwrap()),
-        }
+        let text = try!(self.get_attr_string(name));
+        Ok(text.parse::<isize>().unwrap())
     }
 
     fn set_attr_int(&self, name: &str, value: isize) -> Result<()> {
@@ -75,16 +70,12 @@ impl Device {
     }
 
     fn get_attr_set(&self, name: &str) -> Result<HashSet<String>> {
-        match self.get_attr_string(name) {
-            Err(err) => Err(err),
-            Ok(text) => {
-                let mut set = HashSet::<String>::new();
-                for x in text.trim().split(' ') {
-                    set.insert(x.to_owned());
-                }
-                Ok(set)
-            }
+        let text =  try!(self.get_attr_string(name));
+        let mut set = HashSet::<String>::new();
+        for x in text.trim().split(' ') {
+            set.insert(x.to_owned());
         }
+        Ok(set)
     }
 
     fn _parse_device_index(&self) -> isize {
