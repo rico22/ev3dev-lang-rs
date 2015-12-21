@@ -8,5 +8,5 @@ authors = ["Rick Poyner <rico@alum.mit.edu>"]
 
 git = "https://github.com/carllerche/hamcrest-rust.git"
 
-[dependencies]
-clippy = "*"
+#[dependencies]
+#clippy = "*"
