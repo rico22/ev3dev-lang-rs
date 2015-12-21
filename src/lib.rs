@@ -42,22 +42,27 @@ struct Device {
 #[allow(dead_code)]
 impl Device {
     fn new() -> Device {
-        Device { path: PathBuf::new(), device_index: None }
+        Device {
+            path: PathBuf::new(),
+            device_index: None,
+        }
     }
 
     fn get_attr_string(&self, name: &str) -> Result<String> {
-        //assert!(self.path.deref().is_dir());
+        // assert!(self.path.deref().is_dir());
         let mut s = String::new();
-        try!(File::open(&self.path.join(name)).and_then(
-            |mut f| { f.read_to_string(&mut s) }));
+        try!(File::open(&self.path.join(name))
+                 .and_then(|mut f| f.read_to_string(&mut s)));
         Ok(s.trim().to_owned())
     }
 
     fn set_attr_string(&self, name: &str, value: &str) -> Result<()> {
-        //assert!(self.path.is_dir());
-        OpenOptions::new().append(true).write(true)
-            .open(&self.path.join(name)).and_then(
-                |mut f| { write!(&mut f, "{}", value)})
+        // assert!(self.path.is_dir());
+        OpenOptions::new()
+            .append(true)
+            .write(true)
+            .open(&self.path.join(name))
+            .and_then(|mut f| write!(&mut f, "{}", value))
     }
 
     fn get_attr_int(&self, name: &str) -> Result<isize> {
@@ -70,7 +75,7 @@ impl Device {
     }
 
     fn get_attr_set(&self, name: &str) -> Result<HashSet<String>> {
-        let text =  try!(self.get_attr_string(name));
+        let text = try!(self.get_attr_string(name));
         let mut set = HashSet::<String>::new();
         for x in text.trim().split(' ') {
             set.insert(x.to_owned());
@@ -79,10 +84,17 @@ impl Device {
     }
 
     fn _parse_device_index(&self) -> isize {
-        self.path.deref().file_name().map(
-            |e| { e.to_str().expect("ZOMG!").trim_left_matches(
-                |c: char| { !c.is_digit(10u32) }) }).unwrap()
-            .parse::<isize>().unwrap()
+        self.path
+            .deref()
+            .file_name()
+            .map(|e| {
+                e.to_str()
+                 .expect("ZOMG!")
+                 .trim_left_matches(|c: char| !c.is_digit(10u32))
+            })
+            .unwrap()
+            .parse::<isize>()
+            .unwrap()
     }
 
     fn device_index(&mut self) -> isize {
@@ -92,8 +104,11 @@ impl Device {
         self.device_index.unwrap()
     }
 
-    fn connect(&mut self, dir: &Path, pattern: &str,
-               match_spec: AttributeMatches) -> Option<()> {
+    fn connect(&mut self,
+               dir: &Path,
+               pattern: &str,
+               match_spec: AttributeMatches)
+               -> Option<()> {
         let paths = match fs::read_dir(dir) {
             Err(_) => {
                 println!("dir walk error");
@@ -102,12 +117,14 @@ impl Device {
             Ok(paths) => paths,
         };
         let mut is_match = Some(());
-        for path in paths.filter(|e| {
-            e.is_ok()
-        }) {
+        for path in paths.filter(|e| e.is_ok()) {
             self.path = path.unwrap().path().clone();
-            if !self.path.to_str().expect("ZOUNDS!")
-                .starts_with(pattern) { continue; }
+            if !self.path
+                    .to_str()
+                    .expect("ZOUNDS!")
+                    .starts_with(pattern) {
+                continue;
+            }
             println!("trying path {}", self.path.display());
             for (k, v) in &match_spec {
                 let value = self.get_attr_string(k).unwrap();
@@ -137,7 +154,7 @@ impl SystemShim for Ev3DevSystem {
         PathBuf::from("/")
     }
 }
-    
+
 #[allow(dead_code)]
 static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
 #[allow(dead_code)]
@@ -161,16 +178,25 @@ impl Sensor {
 
     fn new() -> Sensor {
         // stub.
-        Sensor { dev: Device::new(), port_name: String::new(),
-                 type_name: String::new(), mode: String::new(),
-                 modes: HashSet::new(),
-                 nvalues: 0, dp: -1, dp_scale: 0f64}
+        Sensor {
+            dev: Device::new(),
+            port_name: String::new(),
+            type_name: String::new(),
+            mode: String::new(),
+            modes: HashSet::new(),
+            nvalues: 0,
+            dp: -1,
+            dp_scale: 0f64,
+        }
     }
 
-    fn connect<S: SystemShim>(&mut self, system: &S,
-               match_spec: AttributeMatches) -> Option<()> {
+    fn connect<S: SystemShim>(&mut self,
+                              system: &S,
+                              match_spec: AttributeMatches)
+                              -> Option<()> {
         match self.dev.connect(&system.root_path().join(SENSOR_CLASS_DIR),
-                               SENSOR_PATTERN, match_spec) {
+                               SENSOR_PATTERN,
+                               match_spec) {
             None => None,
             Some(_) => {
                 println!("sensor connect ok");
@@ -195,15 +221,16 @@ impl Sensor {
 
         let dpi = self.dp;
         println!("sensor dpi ok");
-        
+
         let dpu = dpi as i32;
         println!("sensor dpu ok");
         self.dp_scale = (1e-1f64).powi(dpu);
         println!("sensor init members ok");
     }
 
-    pub fn from_port<S: SystemShim>(
-        system: &S, port: &InputPort) -> Option<Sensor> {
+    pub fn from_port<S: SystemShim>(system: &S,
+                                    port: &InputPort)
+                                    -> Option<Sensor> {
         let mut sensor = Sensor::new();
 
         let mut match_spec = HashMap::new();
@@ -219,7 +246,9 @@ impl Sensor {
     }
 
     pub fn from_port_and_type<S: SystemShim>(system: &S,
-        port: &InputPort, sensor_types: &HashSet<String>) -> Option<Sensor> {
+                                             port: &InputPort,
+                                             sensor_types: &HashSet<String>)
+                                             -> Option<Sensor> {
         let mut sensor = Sensor::new();
 
         let mut match_spec = HashMap::new();
@@ -270,11 +299,11 @@ mod test {
             // This implementation assumes we start executing in the crate
             // home; i.e. where Cargo.toml lives.
             use std::env;
-            
+
             return env::current_dir().unwrap().join("data");
         }
     }
-    
+
     #[test]
     fn try_types() {
         let mut matches = HashSet::new();
@@ -290,7 +319,9 @@ mod test {
         matches.insert("in1".to_owned());
         matchy.insert("port_name".to_owned(), matches);
         let sensor_dir = system.root_path()
-            .join("sys").join("class").join("msensor");
+                               .join("sys")
+                               .join("class")
+                               .join("msensor");
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
         assert!(dut.device_index() == 0);
         assert!(dut.get_attr_int("value0").unwrap() == 0);
