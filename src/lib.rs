@@ -1,6 +1,6 @@
-#![feature(plugin)]
+// #![feature(plugin)]
 
-#![plugin(clippy)]
+// #![plugin(clippy)]
 
 
 use std::collections::HashSet;
@@ -36,13 +36,13 @@ pub static OUTPUT_D: OutputPort = OutputPort("outD");
 #[allow(dead_code)]
 struct Device {
     path: PathBuf,
-    device_index: isize,
+    device_index: Option<isize>,
 }
 
 #[allow(dead_code)]
 impl Device {
     fn new() -> Device {
-        Device { path: PathBuf::new(), device_index: -1 }
+        Device { path: PathBuf::new(), device_index: None }
     }
 
     fn get_attr_string(&self, name: &str) -> Result<String> {
@@ -86,10 +86,10 @@ impl Device {
     }
 
     fn device_index(&mut self) -> isize {
-        if self.device_index < 0 {
-            self.device_index = self._parse_device_index();
+        if self.device_index.is_none() {
+            self.device_index = Some(self._parse_device_index());
         }
-        self.device_index
+        self.device_index.unwrap()
     }
 
     fn connect(&mut self, dir: &Path, pattern: &str,
@@ -125,7 +125,7 @@ impl Device {
 }
 
 pub trait SystemShim {
-    fn root_path(&self) -> PathBuf { PathBuf::from("/") }
+    fn root_path(&self) -> PathBuf;
 }
 
 #[allow(dead_code)]
@@ -267,8 +267,11 @@ mod test {
 
     impl SystemShim for TestSystem {
         fn root_path(&self) -> PathBuf {
-            PathBuf::from(file!()).parent().expect("ROOT?!?")
-                .parent().expect("ROOTROOT?!?").join("data")
+            // This implementation assumes we start executing in the crate
+            // home; i.e. where Cargo.toml lives.
+            use std::env;
+            
+            return env::current_dir().unwrap().join("data");
         }
     }
     
