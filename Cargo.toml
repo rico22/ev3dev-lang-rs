@@ -4,9 +4,7 @@ name = "ev3dev"
 version = "0.0.1"
 authors = ["Rick Poyner <rico@alum.mit.edu>"]
 
-[dependencies.hamcrest]
-
-git = "https://github.com/carllerche/hamcrest-rust.git"
-
-#[dependencies]
+[dependencies]
+hamcrest = "0.1.0"
+tempdir = "0.3.4"
 #clippy = "*"
