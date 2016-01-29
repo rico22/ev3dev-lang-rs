@@ -70,6 +70,8 @@ impl Device {
         Ok(text.parse::<isize>().unwrap())
     }
 
+    // This dead-code flag seems unnecessary. Bug?
+    #[allow(dead_code)]
     fn set_attr_int(&self, name: &str, value: isize) -> Result<()> {
         self.set_attr_string(name, &format!("{}", value))
     }
@@ -294,8 +296,7 @@ mod test {
     use super::SystemShim;
     use std::collections::{HashSet, HashMap};
     use std::path::PathBuf;
-    use std::path::Path;
-    use std::fs::{self, DirBuilder, File};
+    use std::fs::{DirBuilder, File};
     use std::io::prelude::*;
 
     pub struct TestSystem {
@@ -316,6 +317,7 @@ mod test {
         File::create(&fname).and_then(|mut f| f.write_all(value))
             .expect("bad write");
     }
+
 
     impl TestCase for TestSystem {
         fn setup(&mut self) {
@@ -365,9 +367,10 @@ mod test {
                                .join("sys")
                                .join("class")
                                .join("msensor");
-        assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
+        assert!(dut.connect(&sensor_dir, "sensor", matchy).is_some());
         assert!(dut.get_device_index() == 0);
-        assert!(dut.get_attr_int("value0").unwrap() == 0);
+        assert!(dut.set_attr_int("value0", 1).is_ok());
+        assert!(dut.get_attr_int("value0").unwrap() == 1);
     });
 
     test!(sensor_basics system {
