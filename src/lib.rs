@@ -18,7 +18,7 @@ use std::io::Result;
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 pub struct InputPort(&'static str);
 pub static INPUT_AUTO: InputPort = InputPort("");
 pub static INPUT_1: InputPort = InputPort("in1");
@@ -33,13 +33,13 @@ pub static OUTPUT_B: OutputPort = OutputPort("outB");
 pub static OUTPUT_C: OutputPort = OutputPort("outC");
 pub static OUTPUT_D: OutputPort = OutputPort("outD");
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 struct Device {
     path: PathBuf,
     device_index: Option<isize>,
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 impl Device {
     fn new() -> Device {
         Device {
@@ -97,7 +97,9 @@ impl Device {
             .unwrap()
     }
 
-    fn device_index(&mut self) -> isize {
+    // This dead-code flag seems unnecessary. Bug?
+    #[allow(dead_code)]
+    fn get_device_index(&mut self) -> isize {
         if self.device_index.is_none() {
             self.device_index = Some(self._parse_device_index());
         }
@@ -148,19 +150,19 @@ pub trait SystemShim {
 #[allow(dead_code)]
 struct Ev3DevSystem;
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 impl SystemShim for Ev3DevSystem {
     fn root_path(&self) -> PathBuf {
         PathBuf::from("/")
     }
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
-#[allow(dead_code)]
+//#[allow(dead_code)]
 static SENSOR_PATTERN: &'static str = "sensor";
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 pub struct Sensor {
     dev: Device,
     port_name: String,
@@ -172,7 +174,7 @@ pub struct Sensor {
     dp_scale: f64,
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 impl Sensor {
     // non-public internal machinery.
 
@@ -199,7 +201,6 @@ impl Sensor {
                                match_spec) {
             None => None,
             Some(_) => {
-                println!("sensor connect ok");
                 self.init_binding();
                 self.init_members();
                 Some(())
@@ -287,21 +288,65 @@ impl Sensor {
 
 #[cfg(test)]
 mod test {
+    extern crate tempdir;
+
     use super::Device;
     use super::SystemShim;
     use std::collections::{HashSet, HashMap};
     use std::path::PathBuf;
+    use std::path::Path;
+    use std::fs::{self, DirBuilder, File};
+    use std::io::prelude::*;
 
-    struct TestSystem;
+    pub struct TestSystem {
+        dir: tempdir::TempDir,
+    }
 
     impl SystemShim for TestSystem {
-        fn root_path(&self) -> PathBuf {
-            // This implementation assumes we start executing in the crate
-            // home; i.e. where Cargo.toml lives.
-            use std::env;
+        fn root_path(&self) -> PathBuf { self.dir.path().to_path_buf() }
+    }
 
-            return env::current_dir().unwrap().join("data");
+    pub trait TestCase {
+        fn setup(&mut self);
+    }
+
+    fn init_file(path: &PathBuf, name: &str, value: &[u8]) {
+        let fname = path.join(name);
+        println!("fname {}", fname.display());
+        File::create(&fname).and_then(|mut f| f.write_all(value))
+            .expect("bad write");
+    }
+
+    impl TestCase for TestSystem {
+        fn setup(&mut self) {
+            let path = self.root_path()
+                .join("sys").join("class").join("msensor").join("sensor0");
+            println!("path {}", path.display());
+            DirBuilder::new().recursive(true)
+                .create(&path).expect("bad dir");
+
+            init_file(&path, "modes", b"TOUCH");
+            init_file(&path, "mode", b"TOUCH");
+            init_file(&path, "port_name", b"in1");
+            init_file(&path, "name", b"lego-ev3-touch");
+            init_file(&path, "num_values", b"1");
+            init_file(&path, "value0", b"0");
+            init_file(&path, "dp", b"0");
         }
+    }
+
+    macro_rules! test {
+        // TODO rico: add a test fixture struct?
+        ($name:ident $fixture:ident $expr:expr) => (
+            #[test]
+            fn $name() {
+                let mut $fixture = TestSystem {
+                    dir: tempdir::TempDir::new("").expect("bad tempdir")
+                };
+                $fixture.setup();
+                $expr;
+            }
+        )
     }
 
     #[test]
@@ -310,9 +355,7 @@ mod test {
         matches.insert("Linux");
     }
 
-    #[test]
-    fn device_basics() {
-        let system = TestSystem;
+    test!(device_basics system {
         let mut dut = Device::new();
         let mut matchy = HashMap::new();
         let mut matches = HashSet::new();
@@ -323,16 +366,15 @@ mod test {
                                .join("class")
                                .join("msensor");
         assert!(dut.connect(&sensor_dir, "sensor", matchy) == Some(()));
-        assert!(dut.device_index() == 0);
+        assert!(dut.get_device_index() == 0);
         assert!(dut.get_attr_int("value0").unwrap() == 0);
-    }
+    });
 
-    #[test]
-    fn sensor_basics() {
-        let system = TestSystem;
+    test!(sensor_basics system {
         let sens1 = super::Sensor::from_port(&system, &super::INPUT_1);
+        println!("got here");
         assert!(sens1.is_some());
         let super::InputPort(port1) = super::INPUT_1;
         assert!(sens1.unwrap().port_name == port1);
-    }
+    });
 }
