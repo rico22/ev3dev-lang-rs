@@ -1,6 +1,6 @@
 [package]
 
-name = "ev3dev"
+name = "ev3dev_lang_rs"
 version = "0.0.1"
 authors = ["Rick Poyner <rico@alum.mit.edu>"]
 
