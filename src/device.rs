@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ops::Deref;
-use std::io::Result;
+use std::io::{Result, Error, ErrorKind};
 
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
@@ -19,7 +19,7 @@ pub struct OutputPort(&'static str);
 pub static OUTPUT_AUTO: OutputPort = OutputPort("");
 
 #[cfg(not(feature="brickpi"))]
-mod ev3dev_ports {
+mod ports {
     use super::{InputPort, OutputPort};
 
     pub static INPUT_1: InputPort = InputPort("in1");
@@ -33,12 +33,8 @@ mod ev3dev_ports {
     pub static OUTPUT_D: OutputPort = OutputPort("outD");
 }
 
-#[cfg(not(feature="brickpi"))]
-pub use self::ev3dev_ports::*;
-
-
 #[cfg(feature="brickpi")]
-mod brickpi_ports {
+mod ports {
     use super::{InputPort, OutputPort};
 
     pub static INPUT_1: InputPort = InputPort("ttyAMA0:in1");
@@ -52,9 +48,16 @@ mod brickpi_ports {
     pub static OUTPUT_D: OutputPort = OutputPort("ttyAMA0:outD");
 }
 
-#[cfg(feature="brickpi")]
-pub use self::brickpi_ports::*;
+pub use self::ports::*;
 
+
+pub trait Connected {
+    fn connected(&self) -> bool;
+}
+
+pub trait DeviceIndex {
+    fn device_index(&self) -> Result<isize>;
+}
 
 pub struct Device {
     path: PathBuf,
@@ -104,7 +107,7 @@ impl Device {
         Ok(set)
     }
 
-    fn _parse_device_index(&self) -> isize {
+    fn parse_device_index(&self) -> isize {
         self.path
             .deref()
             .file_name()
@@ -118,9 +121,9 @@ impl Device {
             .unwrap()
     }
 
-    pub fn get_device_index(&mut self) -> isize {
+    fn get_device_index(&mut self) -> isize {
         if self.device_index.is_none() {
-            self.device_index = Some(self._parse_device_index());
+            self.device_index = Some(self.parse_device_index());
         }
         self.device_index.unwrap()
     }
@@ -139,6 +142,7 @@ impl Device {
         };
         let mut is_match = Some(());
         for path in paths.filter(|e| e.is_ok()) {
+            is_match = Some(());
             self.path = path.unwrap().path().clone();
             if !self.path
                 .to_str()
@@ -146,6 +150,7 @@ impl Device {
                 .starts_with(pattern) {
                     continue;
                 }
+            self.get_device_index();
             println!("trying path {}", self.path.display());
             for (k, v) in &match_spec {
                 let value = self.get_attr_string(k).unwrap();
@@ -162,6 +167,21 @@ impl Device {
     }
 }
 
+impl Connected for Device {
+    // TODO rico: use is_empty() when it is available.
+    fn connected(&self) -> bool { self.path != PathBuf::new() }       
+}
+
+impl DeviceIndex for Device {
+    fn device_index(&self) -> Result<isize> {
+        match self.device_index {
+            Some(index) => Ok(index),
+            None => Err(Error::new(ErrorKind::NotConnected,
+                                   "device is not connected!")),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     extern crate tempdir;
@@ -172,6 +192,9 @@ mod test {
     use std::path::PathBuf;
     use std::fs::{DirBuilder, File};
     use std::io::prelude::*;
+
+    // TODO rico: a bunch of these names match stuff in testbase and
+    // sensor::test. Sort it all out.
 
     pub struct TestSystem {
         dir: tempdir::TempDir,
@@ -192,7 +215,6 @@ mod test {
             .expect("bad write");
     }
 
-
     impl TestCase for TestSystem {
         fn setup(&mut self) {
             let path = self.root_path()
@@ -201,13 +223,7 @@ mod test {
             DirBuilder::new().recursive(true)
                 .create(&path).expect("bad dir");
 
-            init_file(&path, "modes", b"TOUCH");
-            init_file(&path, "mode", b"TOUCH");
-            init_file(&path, "port_name", b"in1");
-            init_file(&path, "name", b"lego-ev3-touch");
-            init_file(&path, "num_values", b"1");
             init_file(&path, "value0", b"0");
-            init_file(&path, "dp", b"0");
         }
     }
 
