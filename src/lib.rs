@@ -18,7 +18,6 @@ use std::io::Result;
 pub type Matches = HashSet<String>;
 pub type AttributeMatches = HashMap<String, Matches>;
 
-//#[allow(dead_code)]
 pub struct InputPort(&'static str);
 pub static INPUT_AUTO: InputPort = InputPort("");
 pub static INPUT_1: InputPort = InputPort("in1");
@@ -33,13 +32,11 @@ pub static OUTPUT_B: OutputPort = OutputPort("outB");
 pub static OUTPUT_C: OutputPort = OutputPort("outC");
 pub static OUTPUT_D: OutputPort = OutputPort("outD");
 
-//#[allow(dead_code)]
-struct Device {
+pub struct Device {
     path: PathBuf,
     device_index: Option<isize>,
 }
 
-//#[allow(dead_code)]
 impl Device {
     fn new() -> Device {
         Device {
@@ -70,9 +67,7 @@ impl Device {
         Ok(text.parse::<isize>().unwrap())
     }
 
-    // This dead-code flag seems unnecessary. Bug?
-    #[allow(dead_code)]
-    fn set_attr_int(&self, name: &str, value: isize) -> Result<()> {
+    pub fn set_attr_int(&self, name: &str, value: isize) -> Result<()> {
         self.set_attr_string(name, &format!("{}", value))
     }
 
@@ -99,9 +94,7 @@ impl Device {
             .unwrap()
     }
 
-    // This dead-code flag seems unnecessary. Bug?
-    #[allow(dead_code)]
-    fn get_device_index(&mut self) -> isize {
+    pub fn get_device_index(&mut self) -> isize {
         if self.device_index.is_none() {
             self.device_index = Some(self._parse_device_index());
         }
@@ -149,22 +142,17 @@ pub trait SystemShim {
     fn root_path(&self) -> PathBuf;
 }
 
-#[allow(dead_code)]
-struct Ev3DevSystem;
+pub struct Ev3DevSystem;
 
-//#[allow(dead_code)]
 impl SystemShim for Ev3DevSystem {
     fn root_path(&self) -> PathBuf {
         PathBuf::from("/")
     }
 }
 
-//#[allow(dead_code)]
 static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
-//#[allow(dead_code)]
 static SENSOR_PATTERN: &'static str = "sensor";
 
-//#[allow(dead_code)]
 pub struct Sensor {
     dev: Device,
     port_name: String,
@@ -176,7 +164,6 @@ pub struct Sensor {
     dp_scale: f64,
 }
 
-//#[allow(dead_code)]
 impl Sensor {
     // non-public internal machinery.
 
@@ -338,7 +325,6 @@ mod test {
     }
 
     macro_rules! test {
-        // TODO rico: add a test fixture struct?
         ($name:ident $fixture:ident $expr:expr) => (
             #[test]
             fn $name() {
