@@ -10,6 +10,10 @@
 
 
 //~autogen
+//!
+//! Please note that when auto-generated documentation describes a class, the
+//! corresponding Rust artifact is typically a struct and accompanying traits
+//! to provide the methods.
 
 // #![feature(plugin)]
 
