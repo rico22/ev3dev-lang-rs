@@ -1,0 +1,6 @@
+{
+    "files": [
+        "src/lib.rs"
+    ],
+    "templateDir": "templates"
+}

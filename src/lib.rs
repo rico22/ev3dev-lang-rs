@@ -2,6 +2,14 @@
 //!
 //! The ev3dev_lang_rs crate provides an ev3dev-lang standards-conforming API
 //! for access to sensors and actuators of EV3 and similar robot systems.
+//!
+//~autogen autogen-version
+
+
+//! Sections of this code were auto-generated based on spec v1.0.0.
+
+
+//~autogen
 
 // #![feature(plugin)]
 
