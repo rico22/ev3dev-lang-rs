@@ -1,3 +1,4 @@
+//!
 //~autogen autogen-version
 
 
@@ -19,11 +20,11 @@ static SENSOR_PATTERN: &'static str = "sensor";
 /// The sensor class provides a uniform interface for using most of the
 /// sensors available for the EV3. The various underlying device drivers will
 /// create a `lego-sensor` device for interacting with the sensors.
-/// 
+///
 /// Sensors are primarily controlled by setting the `mode` and monitored by
 /// reading the `value<N>` attributes. Values can be converted to floating point
 /// if needed by `value<N>` / 10.0 ^ `decimals`.
-/// 
+///
 /// Since the name of the `sensor<N>` device node does not correspond to the port
 /// that a sensor is plugged in to, you must look at the `address` attribute if
 /// you need to know which port a sensor is plugged in to. However, if you don't
