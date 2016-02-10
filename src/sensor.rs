@@ -12,8 +12,20 @@ use system::SystemShim;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
-static SENSOR_PATTERN: &'static str = "sensor";
+pub struct SensorType(pub &'static str);
+
+pub static EV3_TOUCH: SensorType = SensorType("lego-ev3-touch");
+pub static EV3_COLOR: SensorType = SensorType("lego-ev3-color");
+pub static EV3_ULTRASONIC: SensorType = SensorType("lego-ev3-us");
+pub static EV3_GYRO: SensorType = SensorType("lego-ev3-gyro");
+pub static EV3_INFRARED: SensorType = SensorType("lego-ev3-ir");
+
+pub static NXT_TOUCH: SensorType = SensorType("lego-nxt-touch");
+pub static NXT_LIGHT: SensorType = SensorType("lego-nxt-light");
+pub static NXT_SOUND: SensorType = SensorType("lego-nxt-sound");
+pub static NXT_ULTRASONIC: SensorType = SensorType("lego-nxt-us");
+pub static NXT_I2C_SENSOR: SensorType = SensorType("nxt-i2c-sensor");
+pub static NXT_ANALOG: SensorType = SensorType("nxt-analog");
 
 //~autogen generic-class-description classes.sensor>currentClass
 
@@ -43,6 +55,9 @@ pub struct Sensor {
     dp: isize,
     dp_scale: f64,
 }
+
+static SENSOR_CLASS_DIR: &'static str = "sys/class/msensor";
+static SENSOR_PATTERN: &'static str = "sensor";
 
 impl Sensor {
     // non-public internal machinery.
