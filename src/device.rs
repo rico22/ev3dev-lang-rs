@@ -15,17 +15,46 @@ pub type AttributeMatches = HashMap<String, Matches>;
 
 pub struct InputPort(pub &'static str);
 pub static INPUT_AUTO: InputPort = InputPort("");
-pub static INPUT_1: InputPort = InputPort("in1");
-pub static INPUT_2: InputPort = InputPort("in2");
-pub static INPUT_3: InputPort = InputPort("in3");
-pub static INPUT_4: InputPort = InputPort("in4");
-
 pub struct OutputPort(&'static str);
 pub static OUTPUT_AUTO: OutputPort = OutputPort("");
-pub static OUTPUT_A: OutputPort = OutputPort("outA");
-pub static OUTPUT_B: OutputPort = OutputPort("outB");
-pub static OUTPUT_C: OutputPort = OutputPort("outC");
-pub static OUTPUT_D: OutputPort = OutputPort("outD");
+
+#[cfg(not(feature="brickpi"))]
+mod ev3dev_ports {
+    use super::{InputPort, OutputPort};
+
+    pub static INPUT_1: InputPort = InputPort("in1");
+    pub static INPUT_2: InputPort = InputPort("in2");
+    pub static INPUT_3: InputPort = InputPort("in3");
+    pub static INPUT_4: InputPort = InputPort("in4");
+    
+    pub static OUTPUT_A: OutputPort = OutputPort("outA");
+    pub static OUTPUT_B: OutputPort = OutputPort("outB");
+    pub static OUTPUT_C: OutputPort = OutputPort("outC");
+    pub static OUTPUT_D: OutputPort = OutputPort("outD");
+}
+
+#[cfg(not(feature="brickpi"))]
+pub use self::ev3dev_ports::*;
+
+
+#[cfg(feature="brickpi")]
+mod brickpi_ports {
+    use super::{InputPort, OutputPort};
+
+    pub static INPUT_1: InputPort = InputPort("ttyAMA0:in1");
+    pub static INPUT_2: InputPort = InputPort("ttyAMA0:in2");
+    pub static INPUT_3: InputPort = InputPort("ttyAMA0:in3");
+    pub static INPUT_4: InputPort = InputPort("ttyAMA0:in4");
+    
+    pub static OUTPUT_A: OutputPort = OutputPort("ttyAMA0:outA");
+    pub static OUTPUT_B: OutputPort = OutputPort("ttyAMA0:outB");
+    pub static OUTPUT_C: OutputPort = OutputPort("ttyAMA0:outC");
+    pub static OUTPUT_D: OutputPort = OutputPort("ttyAMA0:outD");
+}
+
+#[cfg(feature="brickpi")]
+pub use self::brickpi_ports::*;
+
 
 pub struct Device {
     path: PathBuf,

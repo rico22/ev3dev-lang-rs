@@ -8,3 +8,6 @@ authors = ["Rick Poyner <rico@alum.mit.edu>"]
 hamcrest = "0.1.0"
 tempdir = "0.3.4"
 #clippy = "*"
+
+[features]
+brickpi = []
