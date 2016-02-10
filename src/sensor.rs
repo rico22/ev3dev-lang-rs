@@ -1,3 +1,11 @@
+//~autogen autogen-version
+
+
+//! Sections of this code were auto-generated based on spec v1.0.0.
+
+
+//~autogen
+
 use device::{Device, AttributeMatches, InputPort};
 use system::SystemShim;
 use std::collections::HashMap;
