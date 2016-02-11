@@ -1,0 +1,15 @@
+
+* device:
+  * add caching of open file descriptors.
+  * test corner cases of connect() properly.
+  * test index parsing properly.
+* sensor: much to do.
+  * data APIs.
+  * autogen APIs.
+  * subclasses: probably involves trait splitting.
+* motors
+* leds
+* power
+* buttons
+* lcd: is there a rust 2d graphics library that could work?
+* remote control
